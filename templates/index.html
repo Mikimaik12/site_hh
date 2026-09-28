@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Генератор сопроводительных писем для IT-вакансий</title>
+  <meta name="description" content="Локальный генератор сопроводительных писем: вставьте резюме и вакансию, выберите направление и стиль.">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app">
+    <!-- ШАПКА -->
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5.5h16v13H4z"></path>
+              <path d="M7.5 9.5h9"></path>
+              <path d="M7.5 12.5h6"></path>
+              <path d="M7.5 15.5h3"></path>
+            </svg>
+          </span>
+          <div class="brand__text">
+            <h1 class="brand__title">Генератор писем</h1>
+            <p class="brand__subtitle">Сопроводительное письмо под IT-вакансию за пару секунд</p>
+          </div>
+        </div>
+        <div class="topbar__meta">
+          <span class="chip chip--ok" title="Все вычисления выполняются в браузере и на вашем компьютере">
+            <span class="chip__dot"></span>Полностью локально
+          </span>
+          <span class="chip chip--muted" id="activeProfessionChip" aria-live="polite">
+            Направление: <strong id="activeProfessionName">—</strong>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- ШАГ 1. НАПРАВЛЕНИЕ -->
+      <section class="block" aria-labelledby="professionTitle">
+        <div class="block__head">
+          <span class="step">1</span>
+          <div>
+            <h2 class="block__title" id="professionTitle">Направление</h2>
+            <p class="block__hint">От него зависят структура письма и акценты.</p>
+          </div>
+        </div>
+        <div class="cards" role="radiogroup" aria-label="Выбор направления">
+          {% for item in professions %}
+          <button type="button" class="card" role="radio" data-profession="{{ item.id }}"
+                  aria-checked="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}">
+            <span class="card__icon" data-icon="{{ item.icon }}" aria-hidden="true">
+              {% if item.icon == 'server' %}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="18" height="6" rx="2"></rect><path d="M7 7h.01M7 17h.01"></path></svg>
+              {% elif item.icon == 'layout' %}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M9 9v11"></path></svg>
+              {% elif item.icon == 'checklist' %}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11"></path><path d="M3.5 5l1.5 1.5L7.5 4"></path><path d="M3.5 12l1.5 1.5 2.5-2.5"></path><path d="M3.5 19l1.5 1.5 2.5-2.5"></path></svg>
+              {% else %}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"></rect><path d="M12 8V4.5"></path><circle cx="12" cy="3.5" r="1.2"></circle><path d="M9 13v2M15 13v2"></path></svg>
+              {% endif %}
+            </span>
+            <span class="card__body">
+              <span class="card__title">{{ item.label }}</span>
+              <span class="card__text">{{ item.description }}</span>
+            </span>
+            <span class="card__check" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+            </span>
+          </button>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- ШАГ 2. ТЕКСТЫ -->
+      <section class="block" aria-labelledby="inputsTitle">
+        <div class="block__head">
+          <span class="step">2</span>
+          <div>
+            <h2 class="block__title" id="inputsTitle">Резюме и вакансия</h2>
+            <p class="block__hint">Вставьте текст как есть — анализатор сам найдёт навыки, опыт, компании и требования.</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <div class="field__top">
+              <label class="field__label" for="resume">Ваше резюме</label>
+              <div class="field__tools">
+                <button type="button" class="linkbtn" id="fillResume">Пример</button>
+                <button type="button" class="linkbtn" id="clearResume">Очистить</button>
+              </div>
+            </div>
+            <textarea id="resume" class="input" spellcheck="false" autocomplete="off"
+                      placeholder="Иван Петров&#10;Должность: Backend Developer&#10;Опыт работы: 6 лет&#10;&#10;Опыт работы&#10;Acme Tech, 2021 - настоящее время&#10;Senior Backend Developer&#10;Python, Django, PostgreSQL, Docker, Git..."></textarea>
+            <div class="field__bottom">
+              <span class="counter" id="resumeCounter">0 символов</span>
+              <span class="counter counter--warn" id="resumeHint" hidden>Текст короткий — письмо получится более общим</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field__top">
+              <label class="field__label" for="vacancy">Описание вакансии</label>
+              <div class="field__tools">
+                <button type="button" class="linkbtn" id="fillVacancy">Пример</button>
+                <button type="button" class="linkbtn" id="clearVacancy">Очистить</button>
+              </div>
+            </div>
+            <textarea id="vacancy" class="input" spellcheck="false" autocomplete="off"
+                      placeholder="Вакансия: Backend Developer&#10;Компания: ООО Айти Парк&#10;&#10;Обязанности:&#10;- Разработка REST API на Python/Django;&#10;- Проектирование схемы PostgreSQL;&#10;&#10;Обязательные требования:&#10;Python, Django, PostgreSQL, Docker, SQL"></textarea>
+            <div class="field__bottom">
+              <span class="counter" id="vacancyCounter">0 символов</span>
+              <span class="counter counter--warn" id="vacancyHint" hidden>Текст короткий — письмо получится более общим</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ШАГ 3. СТИЛЬ И КНОПКА -->
+      <section class="block" aria-labelledby="styleTitle">
+        <div class="block__head">
+          <span class="step">3</span>
+          <div>
+            <h2 class="block__title" id="styleTitle">Стиль письма</h2>
+            <p class="block__hint">Тон и длина. Содержание при этом остаётся только подтверждённым вашим резюме.</p>
+          </div>
+        </div>
+
+        <div class="styles" role="radiogroup" aria-label="Выбор стиля письма">
+          {% for item in styles %}
+          <button type="button" class="style" role="radio" data-style="{{ item.id }}"
+                  aria-checked="{{ 'true' if item.id == 'professional' else 'false' }}"
+                  tabindex="{{ '0' if item.id == 'professional' else '-1' }}">
+            <span class="style__name">{{ item.label }}</span>
+            <span class="style__desc">{{ item.description }}</span>
+          </button>
+          {% endfor %}
+        </div>
+
+        <div class="actions">
+          <button type="button" class="button button--primary" id="generate">
+            <span class="button__label">Создать сопроводительное письмо</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+          <p class="actions__hint">Горячая клавиша: <kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+        </div>
+
+        <div class="alert" id="alert" role="alert" hidden>
+          <span class="alert__icon" aria-hidden="true">!</span>
+          <span class="alert__text" id="alertText"></span>
+        </div>
+      </section>
+
+      <!-- РЕЗУЛЬТАТ -->
+      <section class="block block--result" id="resultSection" aria-labelledby="resultTitle" hidden>
+        <div class="block__head">
+          <span class="step step--done">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          </span>
+          <div>
+            <h2 class="block__title" id="resultTitle">Ваше сопроводительное письмо</h2>
+            <p class="block__hint">Текст можно править вручную — генерация больше не понадобится.</p>
+          </div>
+        </div>
+
+        <div class="result">
+          <div class="result__main">
+            <textarea id="coverLetter" class="input input--result" spellcheck="true"></textarea>
+            <div class="result__bar">
+              <span class="counter" id="letterCounter">0 символов</span>
+              <div class="result__buttons">
+                <button type="button" class="button button--ghost" id="copyBtn">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 012-2h8"></path></svg>
+                  <span>Копировать</span>
+                </button>
+                <button type="button" class="button button--ghost" id="downloadBtn">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"></path><path d="M8 11l4 4 4-4"></path><path d="M5 19h14"></path></svg>
+                  <span>Скачать .txt</span>
+                </button>
+                <button type="button" class="button button--ghost" id="resetBtn">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 108-8"></path><path d="M4 5v4h4"></path></svg>
+                  <span>Создать заново</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="analysis" aria-labelledby="analysisTitle">
+            <h3 class="analysis__title" id="analysisTitle">Что найдено в вакансии</h3>
+            <div class="analysis__group">
+              <p class="analysis__label analysis__label--good">Совпадает с вашим опытом</p>
+              <div class="tags" id="matchedList"></div>
+            </div>
+            <div class="analysis__group">
+              <p class="analysis__label analysis__label--muted">Не найдено в резюме</p>
+              <div class="tags" id="missingList"></div>
+              <p class="analysis__note">Эти требования письмо не упоминает — придумывать опыт не нужно.</p>
+            </div>
+            <div class="analysis__group" id="optionalGroup" hidden>
+              <p class="analysis__label analysis__label--bonus">Будет плюсом</p>
+              <div class="tags" id="optionalList"></div>
+            </div>
+            <div class="analysis__group" id="warningsGroup" hidden>
+              <p class="analysis__label analysis__label--muted">Замечания</p>
+              <ul class="analysis__warnings" id="warningsList"></ul>
+            </div>
+            <div class="analysis__facts">
+              <div class="fact"><span class="fact__k">Компания</span><span class="fact__v" id="factCompany">—</span></div>
+              <div class="fact"><span class="fact__k">Должность</span><span class="fact__v" id="factTitle">—</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Всё считается на вашем компьютере: нет базы данных, нет внешних API и CDN.
+        Резюме и вакансия не сохраняются и не логируются — после закрытия вкладки они исчезают.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    // Демонстрационные тексты для кнопки «Пример».
+    window.DEMO_TEXTS = {
+      backend: {
+        resume: "Иван Петров\nДолжность: Backend Developer\nОпыт работы: 6 лет\n\nОпыт работы\nAcme Tech, 2021 - настоящее время\nSenior Backend Developer\nРазрабатываю REST API на Python и Django, использую PostgreSQL, Redis, Docker, Git, Jenkins.\n\nООО Ромашка, 2019 - 2021\nBackend Developer\nПисал интеграции через API, работал с MySQL, Docker, Linux.\n\nОбразование\nВысшее образование, МГТУ, 2016\n\nО себе\nОтветственность, работа в команде, внимание к деталям.",
+        vacancy: "Вакансия: Backend Developer\nКомпания: ООО Айти Парк\n\nОбязанности:\n- Разработка и поддержка REST API на Python/Django;\n- Проектирование схемы базы данных PostgreSQL;\n- Настройка CI/CD и Docker для сборки.\n\nОбязательные требования:\nPython, Django, PostgreSQL, Docker, Linux, Git, REST API, SQL\n\nЖелательно:\nKubernetes, Kafka, Redis\nОпыт от 3 лет."
+      },
+      frontend: {
+        resume: "Алексей Иванов\nFrontend Developer, 5 лет опыта\n\nОпыт работы\nООО Веб-Мастер, 2021 - сейчас\nFrontend Developer\nReact, TypeScript, JavaScript, HTML, CSS, SCSS, Webpack, REST API, Redux, Git, Figma. Адаптивная вёрстка, интеграция с API.\n\nИП Соколов, 2019 - 2021\nWeb Developer\nВёрстка на HTML/CSS, jQuery, Bootstrap, Vue, Ajax.\n\nОбразование\nВысшее образование, УрГУ, 2019",
+        vacancy: "Вакансия: Frontend Developer\nКомпания: ООО Айти Парк\n\nОбязанности:\n- Разработка интерфейсов на React и TypeScript;\n- Вёрстка по дизайну из Figma, адаптивность;\n- Интеграция с REST API.\n\nТребования:\nJavaScript, TypeScript, React, HTML, CSS, Git, REST API\n\nЖелательно:\nNext.js, Webpack, Docker"
+      },
+      manual_qa: {
+        resume: "Мария Смирнова\nДолжность: QA Engineer\nОпыт работы: 4 года\n\nОпыт работы\nООО ТехноСфера, 2022 - настоящее время\nQA Engineer\nРучное тестирование веб-приложений: пишу тест-кейсы и чек-листы, веду регрессионное и смоук-тестирование, заводить баг-репорты в Jira, тестирую API через Postman, пишу SQL-запросы к PostgreSQL.\n\nАО Диджитал, 2020 - 2022\nJunior QA\nФункциональное тестирование, работа с Charles, DevTools, Swagger.\n\nОбразование\nВысшее образование, СПбГУ, 2020\n\nО себе\nВнимание к деталям, ответственность, коммуникабельность.",
+        vacancy: "Вакансия: QA Engineer\nКомпания: ООО Банк Технологии\n\nОбязанности:\n- Написание и актуализация тест-кейсов;\n- Проведение регрессионного и смоук-тестирования;\n- Проверка API через Postman и Swagger;\n- Заведение дефектов в Jira.\n\nОбязательные требования:\nFunctional Testing, Regression Testing, Test Cases, Bug Reporting, Jira, API Testing, Postman, SQL\n\nЖелательно:\nTestRail, Charles\nОпыт от 2 лет."
+      },
+      automation_qa: {
+        resume: "Дмитрий Орлов\nДолжность: Automation QA Engineer\nОпыт работы: 3 года\n\nОпыт работы\nООО СофтЛаб, 2022 - настоящее время\nQA Automation Engineer\nАвтоматизация тестирования на Python и Pytest, Selenium WebDriver, Playwright, API-тесты, Allure, Jenkins, Git, Docker, REST API.\n\nАО Текст, 2021 - 2022\nQA Engineer\nРучное тестирование, тест-кейсы, Jira, Postman.\n\nОбразование\nВысшее образование, МИФИ, 2021",
+        vacancy: "Вакансия: Automation QA Engineer\nКомпания: ООО Финтех\n\nОбязанности:\n- Разработка автотестов UI на Selenium/Playwright;\n- Автоматизация API-тестов;\n- Настройка запуска тестов в CI (Jenkins);\n- Анализ отчётов Allure.\n\nОбязательные требования:\nSelenium, Playwright, Pytest, Python, API Testing, CI/CD, Allure, Git\n\nЖелательно:\nDocker, Kubernetes, TestRail\nОпыт от 2 лет."
+      }
+    };
+    window.APP_LIMITS = {{ limits | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

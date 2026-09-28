@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Сборка и кэш
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.swp
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Локальное окружение и секреты
+.env
+.env.local
+
+# Скачанные письма не должны попадать в репозиторий: приложение
+# обещает нигде не сохранять текст резюме.
+cover-letter-*.txt

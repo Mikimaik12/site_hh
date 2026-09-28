@@ -1,0 +1,11 @@
+# Единые переносы строк в репозитории: LF внутри, CRLF в рабочей копии
+# на Windows. Иначе каждый файл выглядит изменённым при переключении
+# между Linux и Windows.
+* text=auto eol=lf
+
+# Бинарные файлы не трогаем.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
