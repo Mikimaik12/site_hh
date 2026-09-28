@@ -10,8 +10,11 @@
 
   var state = {
     profession: "backend",
-    style: "professional"
+    style: "professional",
+    vkType: "vacancy_breakdown"
   };
+
+  var vkLimits = window.VK_LIMITS || { max: 4000 };
 
   var el = {
     cards: Array.prototype.slice.call(document.querySelectorAll("[data-profession]")),
@@ -43,7 +46,25 @@
     fillResume: document.getElementById("fillResume"),
     fillVacancy: document.getElementById("fillVacancy"),
     clearResume: document.getElementById("clearResume"),
-    clearVacancy: document.getElementById("clearVacancy")
+    clearVacancy: document.getElementById("clearVacancy"),
+    vkSection: document.getElementById("vkSection"),
+    vkTypes: Array.prototype.slice.call(document.querySelectorAll("[data-vk-type]")),
+    vkGenerate: document.getElementById("vkGenerate"),
+    vkAlert: document.getElementById("vkAlert"),
+    vkAlertText: document.getElementById("vkAlertText"),
+    vkStatus: document.getElementById("vkStatus"),
+    vkPreview: document.getElementById("vkPreview"),
+    vkPostText: document.getElementById("vkPostText"),
+    vkCounter: document.getElementById("vkCounter"),
+    vkCopyBtn: document.getElementById("vkCopyBtn"),
+    vkPublishBtn: document.getElementById("vkPublishBtn"),
+    vkPublishResult: document.getElementById("vkPublishResult"),
+    vkWarningsGroup: document.getElementById("vkWarningsGroup"),
+    vkWarningsList: document.getElementById("vkWarningsList"),
+    publishModal: document.getElementById("publishModal"),
+    publishModalText: document.getElementById("publishModalText"),
+    publishCancel: document.getElementById("vkPublishCancel"),
+    publishConfirm: document.getElementById("vkPublishConfirm")
   };
 
   var limits = window.APP_LIMITS || { min: 10, recommended: 200, max: 20000 };
@@ -73,6 +94,18 @@
     updateCounter(el.resume, el.resumeCounter, el.resumeHint);
     updateCounter(el.vacancy, el.vacancyCounter, el.vacancyHint);
     updateCounter(el.coverLetter, el.letterCounter, null);
+    updateVkCounter();
+  }
+
+  // У поста свой лимит длины (он приходит с ответом сервера), поэтому
+  // общий updateCounter с лимитом полей ввода для него не подходит.
+  function updateVkCounter() {
+    if (!el.vkPostText || !el.vkCounter) return;
+    var length = el.vkPostText.value.length;
+    el.vkCounter.textContent = length + " " + plural(length, "символ", "символа", "символов");
+    if (length > vkLimits.max) {
+      el.vkCounter.textContent += " — превышен лимит " + vkLimits.max;
+    }
   }
 
   function showError(message) {
@@ -262,6 +295,7 @@
     });
 
     el.resultSection.hidden = false;
+    el.vkSection.hidden = false;
     el.resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -343,11 +377,195 @@
     el.resetBtn.addEventListener("click", function () {
       el.coverLetter.value = "";
       el.resultSection.hidden = true;
+      hideVkPreview();
       hideError();
       refreshCounters();
       el.resume.focus();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  }
+
+  /* --- Контент для VK ---------------------------------------------------------
+     Пост готовится на сервере, публикуется только по явному подтверждению.
+     Ключ доступа в браузер не попадает: его использует только Flask.
+     ------------------------------------------------------------------------- */
+
+  function showVkError(message, hint) {
+    el.vkAlertText.textContent = hint ? message + " " + hint : message;
+    el.vkAlert.hidden = false;
+  }
+
+  function hideVkError() {
+    el.vkAlert.hidden = true;
+    el.vkAlertText.textContent = "";
+  }
+
+  function hideVkPreview() {
+    el.vkSection.hidden = true;
+    el.vkPreview.hidden = true;
+    el.vkPostText.value = "";
+    el.vkPublishResult.hidden = true;
+    hideVkError();
+    updateVkCounter();
+  }
+
+  function setVkLoading(isLoading) {
+    el.vkGenerate.classList.toggle("is-loading", isLoading);
+    el.vkGenerate.disabled = isLoading;
+    el.vkGenerate.querySelector(".button__label").textContent = isLoading
+      ? "Создаём пост…"
+      : "Создать пост для VK";
+  }
+
+  function postJson(url, payload) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store"
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        return { ok: response.ok, data: data };
+      });
+    });
+  }
+
+  function renderVkPost(data) {
+    el.vkPostText.value = data.text || "";
+    if (data.max_chars) {
+      vkLimits.max = data.max_chars;
+    }
+    updateVkCounter();
+
+    var warnings = data.warnings || [];
+    el.vkWarningsGroup.hidden = warnings.length === 0;
+    el.vkWarningsList.innerHTML = "";
+    warnings.forEach(function (item) {
+      var li = document.createElement("li");
+      li.textContent = item;
+      el.vkWarningsList.appendChild(li);
+    });
+
+    el.vkPublishResult.hidden = true;
+    el.vkPreview.hidden = false;
+    hideVkError();
+  }
+
+  function generateVkPost() {
+    hideVkError();
+    el.vkPublishResult.hidden = true;
+
+    setVkLoading(true);
+    postJson("/vk/post", {
+      resume: el.resume.value,
+      vacancy: el.vacancy.value,
+      post_type: state.vkType
+    })
+      .then(function (result) {
+        if (!result.ok || !result.data || result.data.success !== true) {
+          showVkError((result.data && result.data.error) || "Не удалось создать пост для VK.");
+          return;
+        }
+        renderVkPost(result.data);
+      })
+      .catch(function () {
+        showVkError("Сервер недоступен. Убедитесь, что приложение запущено (python app.py).");
+      })
+      .then(function () {
+        setVkLoading(false);
+      });
+  }
+
+  /* Подтверждение публикации. Модалка вместо window.confirm: у браузерного
+     диалога надписи кнопок зависят от языка интерфейса, а здесь важно,
+     чтобы человек точно прочитал «Опубликовать этот пост в группу VK?»
+     и мог отменить одним нажатием Esc. */
+  function openPublishModal() {
+    el.publishModal.hidden = false;
+    el.publishConfirm.focus();
+    document.addEventListener("keydown", onModalKeydown);
+  }
+
+  function closePublishModal() {
+    el.publishModal.hidden = true;
+    document.removeEventListener("keydown", onModalKeydown);
+  }
+
+  function onModalKeydown(event) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePublishModal();
+      return;
+    }
+    if (event.key === "Tab") {
+      // Фокус не должен уйти из модалки на страницу под ней.
+      event.preventDefault();
+      var target = event.shiftKey ? el.publishCancel : el.publishConfirm;
+      target.focus();
+    }
+  }
+
+  function publishVkPost() {
+    var text = el.vkPostText.value.trim();
+    if (!text) {
+      closePublishModal();
+      showVkError("Пост пустой. Напишите текст в поле предпросмотра.");
+      return;
+    }
+
+    closePublishModal();
+    el.vkPublishBtn.disabled = true;
+
+    postJson("/vk/publish", { text: text })
+      .then(function (result) {
+        var data = result.data || {};
+        if (!result.ok || data.success !== true) {
+          showVkError(data.error || "Не удалось опубликовать запись в VK.", data.hint);
+          return;
+        }
+        el.vkPublishResult.hidden = false;
+        el.vkPublishResult.textContent = "Опубликовано. Запись №" + data.post_id + ": " + data.url;
+      })
+      .catch(function () {
+        showVkError("Сервер недоступен. Убедитесь, что приложение запущено (python app.py).");
+      })
+      .then(function () {
+        el.vkPublishBtn.disabled = false;
+      });
+  }
+
+  function initVk() {
+    el.vkTypes.forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.vkType = button.dataset.vkType;
+        selectGroup(el.vkTypes, state.vkType, "vkType");
+      });
+    });
+
+    el.vkPostText.addEventListener("input", updateVkCounter);
+    el.vkGenerate.addEventListener("click", generateVkPost);
+
+    el.vkCopyBtn.addEventListener("click", function () {
+      var text = el.vkPostText.value.trim();
+      if (!text) { showVkError("Пост пустой — нечего копировать."); return; }
+      copyText(text)
+        .then(function () { flashButton(el.vkCopyBtn, "Скопировано"); })
+        .catch(function () { showVkError("Браузер не дал доступ к буферу обмена. Выделите текст и скопируйте вручную."); });
+    });
+
+    el.vkPublishBtn.addEventListener("click", openPublishModal);
+    el.publishCancel.addEventListener("click", closePublishModal);
+    el.publishConfirm.addEventListener("click", publishVkPost);
+    Array.prototype.forEach.call(
+      el.publishModal.querySelectorAll("[data-vk-close]"),
+      function (backdrop) { backdrop.addEventListener("click", closePublishModal); }
+    );
+
+    // Подсказка под кнопкой: без настроек VK генерация постов работает,
+    // а публикация объяснит, чего не хватает.
+    el.vkStatus.textContent = window.VK_ENABLED === true
+      ? "Публикация идёт от имени сообщества. Перед отправкой будет запрос подтверждения."
+      : "Посты можно создавать и копировать. Для публикации укажите VK_ACCESS_TOKEN и VK_GROUP_ID в файле .env.";
   }
 
   /* --- Старт ---------------------------------------------------------------- */
@@ -356,6 +574,7 @@
     initGroups();
     initFieldTools();
     initResultActions();
+    initVk();
     refreshCounters();
   });
 })();

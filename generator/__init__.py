@@ -29,6 +29,7 @@ from .config import (
 )
 from .generator import (
     ValidationError,
+    analyze_pair,
     generate_cover_letter,
     generate_cover_letter_dict,
     verify_cover_letter,
@@ -43,7 +44,7 @@ from .professions import (
 )
 from .skills import known_skill_names
 from .styles import STYLES, get_style, is_known_style, style_choices
-from .types import GenerationResult, MatchResult, ResumeFacts, VacancyFacts
+from .types import GenerationResult, MatchResult, PairAnalysis, ResumeFacts, VacancyFacts
 
 __version__ = "1.0.0"
 
@@ -56,12 +57,14 @@ __all__ = [
     "MAX_INPUT_CHARS",
     "MIN_INPUT_CHARS",
     "PROFESSIONS",
+    "PairAnalysis",
     "RECOMMENDED_INPUT_CHARS",
     "ResumeFacts",
     "STYLES",
     "VacancyFacts",
     "ValidationError",
     "__version__",
+    "analyze_pair",
     "analyze_resume",
     "analyze_vacancy",
     "detect_profession",

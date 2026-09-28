@@ -30,6 +30,7 @@ from .matcher import match_skills
 from .phrases import PhrasePicker
 from .professions import build_paragraphs, get_profession, is_known_profession
 from .professions.base import LetterContext, generic_stack_line
+from .skills import mentions_skill
 from .styles import get_style, is_known_style
 from .text_utils import (
     clean_fragment,
@@ -40,7 +41,7 @@ from .text_utils import (
     truncate,
     word_count,
 )
-from .types import GenerationResult, MatchResult, ResumeFacts, VacancyFacts
+from .types import GenerationResult, MatchResult, PairAnalysis, ResumeFacts, VacancyFacts
 
 _ERROR_RESUME_EMPTY = "Добавьте текст резюме."
 _ERROR_VACANCY_EMPTY = "Добавьте описание вакансии."
@@ -123,6 +124,27 @@ def validate_style(style_id: str) -> str:
     return value
 
 
+def analyze_pair(resume_text: str, vacancy_text: str) -> PairAnalysis:
+    """Разбирает резюме и вакансию один раз для всех потребителей.
+
+    Возвращает готовые `ResumeFacts`, `VacancyFacts` и `MatchResult`, поэтому
+    вызывающая сторона не анализирует тексты повторно. Валидация входных
+    данных ровно та же, что у `generate_cover_letter`, так что сообщения об
+    ошибках одинаковы для письма и для постов VK.
+    """
+    resume_input = validate_resume(resume_text)
+    vacancy_input = validate_vacancy(vacancy_text)
+    resume_facts = analyze_resume(resume_input)
+    vacancy_facts = analyze_vacancy(vacancy_input)
+    return PairAnalysis(
+        resume=resume_facts,
+        vacancy=vacancy_facts,
+        match=match_skills(resume_facts, vacancy_facts),
+        resume_text=resume_input,
+        vacancy_text=vacancy_input,
+    )
+
+
 # --- Проверка достоверности ----------------------------------------------------
 
 
@@ -195,11 +217,12 @@ def verify_cover_letter(
 
 
 def _mentions_skill(text_lower: str, skill: str) -> bool:
-    """Проверяет, что навык упомянут в тексте (с границами слова)."""
-    name = to_lower(skill)
-    if not name:
-        return False
-    return f" {name} " in f" {text_lower} " or f"{name}." in text_lower or f"{name}," in text_lower
+    """Проверяет, упомянут ли навык в тексте (с границами слова).
+
+    Общая реализация живёт в `generator.skills`, чтобы проверка не
+    расходилась между письмом и постами для VK.
+    """
+    return mentions_skill(text_lower, skill)
 
 
 # --- Контроль длины для стиля «Краткий» ---------------------------------------
@@ -421,9 +444,10 @@ def generate_cover_letter(
     profession_id = validate_profession(profession)
     style_id = validate_style(style)
 
-    resume_facts = analyze_resume(resume_input)
-    vacancy_facts = analyze_vacancy(vacancy_input)
-    match = match_skills(resume_facts, vacancy_facts)
+    analysis = analyze_pair(resume_input, vacancy_input)
+    resume_facts = analysis.resume
+    vacancy_facts = analysis.vacancy
+    match = analysis.match
 
     style_spec = get_style(style_id)
     ctx = LetterContext(

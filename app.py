@@ -1,9 +1,13 @@
-"""Flask-приложение: тонкий веб-слой над пакетом `generator`.
+"""Flask-приложение: тонкий веб-слой над пакетами `generator` и `vk`.
 
 Приложение полностью локальное:
-  * нет базы данных, нет внешних API, нет CDN;
+  * нет базы данных, нет внешних AI-API, нет CDN;
   * входные данные не сохраняются и не логируются;
   * ответы помечаются `no-store`, чтобы ничего не кэшировалось.
+
+Публикация в VK - необязательная функция. Без ключа доступа приложение
+работает как раньше, а по кнопке публикации объясняет, что VK не
+настроен.
 
 Запуск:
     python app.py
@@ -26,6 +30,16 @@ from generator import (
     generate_cover_letter,
     list_professions,
     style_choices,
+)
+from vk import (
+    VkApiError,
+    VkNotConfiguredError,
+    VkPostError,
+    VkValidationError,
+    build_post,
+    post_types,
+    publish_post,
+    vk_status,
 )
 
 app = Flask(__name__)
@@ -66,17 +80,22 @@ def index() -> str:
             "recommended": RECOMMENDED_INPUT_CHARS,
             "max": MAX_INPUT_CHARS,
         },
+        vk_post_types=[item.as_dict() for item in post_types()],
+        vk_enabled=vk_status()["enabled"],
+        vk_max_chars=vk_status()["limits"]["max_chars"],
     )
 
 
 @app.route("/api/meta")
 def api_meta():
-    """Справочник направлений и стилей для интерфейса."""
+    """Справочник направлений, стилей и типов постов VK."""
     return jsonify(
         {
             "success": True,
             "professions": [profession.as_dict() for profession in list_professions()],
             "styles": [{"id": key, "label": label} for key, label in style_choices()],
+            "vk_post_types": [item.as_dict() for item in post_types()],
+            "vk": vk_status(),
         }
     )
 
@@ -115,6 +134,79 @@ def generate():
 @app.errorhandler(404)
 def not_found(_error):
     return jsonify({"success": False, "error": "Страница не найдена."}), 404
+
+
+# --- VK --------------------------------------------------------------------------
+# Маршруты не содержат ничего, кроме разбора запроса и ответа. Вся логика
+# в пакете `vk`: сборка текста, проверки и HTTP-запрос к ВКонтакте.
+
+
+def _json_payload() -> dict:
+    """Тело запроса как словарь. Неверный JSON - пустой словарь."""
+    payload = request.get_json(silent=True) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+@app.route("/vk/post", methods=["POST"])
+def vk_post():
+    """Собирает пост для VK и отдаёт его в предпросмотр.
+
+    Запрос:
+        {"resume": "...", "vacancy": "...", "post_type": "vacancy_breakdown"}
+    Ответ:
+        {"success": true, "post_type": "...", "text": "...", "chars": 379, ...}
+
+    Ничего не публикуется: этот маршрут только готовит текст.
+    """
+    payload = _json_payload()
+    try:
+        post = build_post(
+            resume_text=payload.get("resume", ""),
+            vacancy_text=payload.get("vacancy", ""),
+            post_type=payload.get("post_type"),
+        )
+    except ValidationError as error:
+        return jsonify(error.to_dict()), 400
+    except (VkValidationError, VkPostError) as error:
+        message = getattr(error, "user_message", None) or str(error)
+        return jsonify({"success": False, "error": message, "field": "post_type"}), 400
+    return jsonify(post.to_dict())
+
+
+@app.route("/vk/publish", methods=["POST"])
+def vk_publish():
+    """Публикует отредактированный текст поста на стене группы.
+
+    Маршрут вызывается только после предпросмотра и подтверждения
+    пользователем - автоматической публикации в проекте нет.
+
+    Запрос:
+        {"text": "..."}
+    Ответ:
+        {"success": true, "post_id": 17, "url": "https://vk.com/wall-1_17"}
+    """
+    payload = _json_payload()
+    try:
+        return jsonify(publish_post(payload.get("text", "")))
+    except VkValidationError as error:
+        return jsonify(error.to_dict()), 400
+    except VkNotConfiguredError as error:
+        return jsonify(error.to_dict()), 400
+    except VkApiError as error:
+        return jsonify(error.to_dict()), 502
+
+
+@app.errorhandler(VkPostError)
+def vk_post_bug(error: VkPostError):
+    """Шаблон поста нарушил собственную проверку.
+
+    Обычным вводом не вызывается: это ошибка разработки. Пользователь
+    получает нейтральное сообщение без traceback.
+    """
+    app.logger.error("VK post rejected by its own verification: %s", error)
+    return jsonify(
+        {"success": False, "error": "Не удалось собрать пост для VK. Попробуйте другой тип публикации."}
+    ), 500
 
 
 @app.errorhandler(500)

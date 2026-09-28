@@ -216,7 +216,84 @@
           </aside>
         </div>
       </section>
+
+      <!-- КОНТЕНТ ДЛЯ VK -->
+      <section class="block block--vk" id="vkSection" aria-labelledby="vkTitle" hidden>
+        <div class="block__head">
+          <span class="step">4</span>
+          <div>
+            <h2 class="block__title" id="vkTitle">Контент для VK</h2>
+            <p class="block__hint">
+              Пост собирается из уже разобранной вакансии. В тексте не будет имени, телефона и почты.
+            </p>
+          </div>
+        </div>
+
+        <div class="vk">
+          <p class="vk__label">Тип публикации:</p>
+          <div class="styles" role="radiogroup" aria-label="Тип публикации VK">
+            {% for item in vk_post_types %}
+            <button type="button" class="style" role="radio" data-vk-type="{{ item.id }}"
+                    aria-checked="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}">
+              <span class="style__name">{{ item.label }}</span>
+              <span class="style__desc">{{ item.description }}</span>
+            </button>
+            {% endfor %}
+          </div>
+
+          <div class="actions">
+            <button type="button" class="button button--primary" id="vkGenerate">
+              <span class="button__label">Создать пост для VK</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+            <p class="actions__hint" id="vkStatus"></p>
+          </div>
+
+          <div class="alert" id="vkAlert" role="alert" hidden>
+            <span class="alert__icon" aria-hidden="true">!</span>
+            <span class="alert__text" id="vkAlertText"></span>
+          </div>
+
+          <div class="vk__preview" id="vkPreview" hidden>
+            <div class="analysis__group" id="vkWarningsGroup" hidden>
+              <p class="analysis__label analysis__label--muted">Замечания</p>
+              <ul class="analysis__warnings" id="vkWarningsList"></ul>
+            </div>
+
+            <label class="vk__previewLabel" for="vkPostText">Предпросмотр поста</label>
+            <textarea id="vkPostText" class="input input--result" spellcheck="true"></textarea>
+            <div class="result__bar">
+              <span class="counter" id="vkCounter">0 символов</span>
+              <div class="result__buttons">
+                <button type="button" class="button button--ghost" id="vkCopyBtn">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 012-2h8"></path></svg>
+                  <span>Копировать</span>
+                </button>
+                <button type="button" class="button button--danger" id="vkPublishBtn">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5V19h16v-8.5"></path><path d="M12 15V3"></path><path d="M8 7l4-4 4 4"></path></svg>
+                  <span>Опубликовать в VK</span>
+                </button>
+              </div>
+            </div>
+            <p class="vk__note" id="vkPublishResult" hidden></p>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <!-- ПОДТВЕРЖДЕНИЕ ПУБЛИКАЦИИ -->
+    <div class="modal" id="publishModal" role="dialog" aria-modal="true"
+         aria-labelledby="publishModalTitle" aria-describedby="publishModalText" hidden>
+      <div class="modal__backdrop" data-vk-close="1"></div>
+      <div class="modal__box">
+        <h3 class="modal__title" id="publishModalTitle">Подтвердите публикацию</h3>
+        <p class="modal__text" id="publishModalText">Опубликовать этот пост в группу VK?</p>
+        <div class="modal__actions">
+          <button type="button" class="button button--ghost" id="vkPublishCancel">Отмена</button>
+          <button type="button" class="button button--danger" id="vkPublishConfirm">Опубликовать</button>
+        </div>
+      </div>
+    </div>
 
     <footer class="footer">
       <p>
@@ -247,6 +324,10 @@
       }
     };
     window.APP_LIMITS = {{ limits | tojson }};
+    // Настроен ли VK. Сам ключ доступа в браузер не отдаётся: секрет
+    // использует только серверная часть приложения.
+    window.VK_ENABLED = {{ vk_enabled | tojson }};
+    window.VK_LIMITS = { max: {{ vk_max_chars | tojson }} };
   </script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

@@ -596,3 +596,23 @@ def display_skills(names: Iterable[str]) -> List[str]:
 def known_skill_names() -> List[str]:
     """Все известные навыки (для интерфейса и документации)."""
     return sorted({skill.name for skill in ALL_SKILLS})
+
+
+def mentions_skill(text: str, skill: str) -> bool:
+    """Проверяет, что навык упомянут в тексте как отдельное слово.
+
+    Общая проверка для всех потребителей словаря: и проверка письма на
+    выдуманные навыки, и проверка постов для VK. Регистронезависимая и
+    с учётом кириллической «ё».
+
+    Аргументы:
+        text:  текст для поиска;
+        skill: каноническое имя навыка из словаря.
+    """
+    from .text_utils import to_lower
+
+    name = to_lower(skill)
+    if not name:
+        return False
+    haystack = to_lower(text)
+    return f" {name} " in f" {haystack} " or f"{name}." in haystack or f"{name}," in haystack

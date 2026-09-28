@@ -135,3 +135,31 @@ class GenerationResult:
     def __getitem__(self, key: str):
         """Позволяет обращаться к результату как к словарю."""
         return self.to_dict()[key]
+
+
+@dataclass
+class PairAnalysis:
+    """Готовый разбор пары «резюме + вакансия».
+
+    Собирается один раз функцией `generator.analyze_pair` и переиспользуется
+    всеми потребителями: генератором письма и генератором постов для VK.
+    Благодаря этому вакансия не разбирается повторно, а обе части
+    приложения видят одни и те же факты и одно и то же сопоставление
+    навыков.
+    """
+
+    resume: ResumeFacts
+    vacancy: VacancyFacts
+    match: MatchResult
+    resume_text: str
+    vacancy_text: str
+
+    @property
+    def title(self) -> str:
+        """Должность из вакансии или пустая строка."""
+        return self.vacancy.title
+
+    @property
+    def company(self) -> str:
+        """Компания из вакансии или пустая строка."""
+        return self.vacancy.company
